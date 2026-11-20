@@ -1,0 +1,6 @@
+{
+  "name": "VoltLab",
+  "description": "Offline real-time electronic circuit simulator with Jetpack Compose 60fps schematic canvas, multi-threaded Modified Nodal Analysis (MNA) engine, interactive measurement probes, multi-channel oscilloscope, and local Room/JSON storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

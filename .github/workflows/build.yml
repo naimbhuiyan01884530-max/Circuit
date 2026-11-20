@@ -1,0 +1,73 @@
+name: Android CI - Build & Test APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Test & Build Debug/Release APKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew || true
+
+      - name: Ensure Gradle wrapper exists
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate CI upload keystore if not provided
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass ci_store_pass -keypass ci_key_pass \
+              -dname "CN=VoltLab CI, OU=Engineering, O=VoltLab, L=Unknown, S=Unknown, C=US"
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=ci_store_pass" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=ci_key_pass" >> $GITHUB_ENV
+          else
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          fi
+
+      - name: Run Unit & Robolectric Tests
+        run: gradle :app:testDebugUnitTest
+
+      - name: Build Debug APK
+        run: gradle :app:assembleDebug
+
+      - name: Build Release APK
+        run: gradle :app:assembleRelease
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoltLab-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoltLab-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">VoltLab</string>
+    <string name="action_run">Run</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_step">Step</string>
+    <string name="action_reset">Reset</string>
+    <string name="action_wire">Wire</string>
+    <string name="action_select">Select</string>
+    <string name="action_probe">Probe</string>
+    <string name="action_scope">Scope</string>
+    <string name="action_library">Circuits</string>
+    <string name="action_save">Save</string>
+    <string name="action_export_json">Export JSON</string>
+    <string name="action_import_json">Import JSON</string>
+</resources>
