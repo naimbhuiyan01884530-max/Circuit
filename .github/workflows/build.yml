@@ -16,24 +16,42 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+          java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew || true
-
-      - name: Ensure Gradle wrapper exists
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
-      - name: Generate CI upload keystore if not provided
+      - name: Prepare Android SDK & Accept Licenses
         run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n 1)
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" || true
+          fi
+
+      - name: Prepare Debug & Release Keystores
+        run: |
+          if [ ! -f debug.keystore ]; then
+            if [ -f debug.keystore.base64 ]; then
+              base64 -d debug.keystore.base64 > debug.keystore || rm -f debug.keystore
+            fi
+            if [ ! -s debug.keystore ]; then
+              keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass android -keypass android \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+          fi
+
           if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             keytool -genkeypair -v -keystore my-upload-key.jks -alias upload \
               -keyalg RSA -keysize 2048 -validity 10000 \
@@ -50,13 +68,13 @@ jobs:
           fi
 
       - name: Run Unit & Robolectric Tests
-        run: gradle :app:testDebugUnitTest
+        run: gradle :app:testDebugUnitTest --no-daemon
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug --no-daemon
 
       - name: Build Release APK
-        run: gradle :app:assembleRelease
+        run: gradle :app:assembleRelease --no-daemon
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
